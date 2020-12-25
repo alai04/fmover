@@ -1,0 +1,6 @@
+tasks:
+  - from: /Users/alai04/tmp/m1/snd
+    to: /Users/alai04/tmp/m2/rcv
+  - from: /Users/alai04/tmp/m2/snd
+    to: /Users/alai04/tmp/m1/rcv
+    
