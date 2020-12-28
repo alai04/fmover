@@ -1,6 +1,10 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/knadh/koanf"
@@ -9,7 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var k = koanf.New(".")
+var (
+	k    = koanf.New(".")
+	done = make(chan bool)
+	wg   sync.WaitGroup
+)
 
 func main() {
 	cfgFilename := "config.yml"
@@ -28,5 +36,14 @@ func main() {
 		tasks[i].interval = time.Second
 		tasks[i].Start()
 	}
-	<-make(chan bool)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	select {
+	case <-sigs:
+		log.Infoln("Exiting...")
+		close(done)
+	}
+
+	wg.Wait()
 }

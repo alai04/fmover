@@ -21,6 +21,7 @@ type taskStruct struct {
 }
 
 func (t *taskStruct) Start() (err error) {
+	wg.Add(1)
 	go t.Run(context.Background())
 
 	log.Infoln("watching", t.From)
@@ -28,39 +29,48 @@ func (t *taskStruct) Start() (err error) {
 }
 
 func (t *taskStruct) Run(ctx context.Context) {
+	defer wg.Done()
 	for {
-		fn, err := t.checkFromDir()
-		if err == nil && fn != "" {
-			log.Infoln("Moving file", fn, "to dest dir...")
-			if err = t.copyFile(fn); err != nil {
-				log.Errorln("Error copying file ", fn, ":", err)
-			} else {
-				if err = os.Remove(filepath.Join(t.From, fn)); err != nil {
-					log.Errorln("Error removing file ", fn, ":", err)
+		select {
+		case <-done:
+			log.Infoln("Go routine", *t, "exit.")
+			return
+		default:
+			fn, err := t.checkFromDir()
+			if err == nil && fn != "" {
+				log.Infoln("Moving file", fn, "to", t.To)
+				if err = t.moveFile(fn); err != nil {
+					log.Errorln("Error moving file ", fn, ":", err)
 				}
+			} else {
+				time.Sleep(t.interval)
 			}
-		} else {
-			time.Sleep(t.interval)
 		}
 	}
 }
 
 func (t *taskStruct) checkFromDir() (filename string, err error) {
 	var curFileInfo []os.FileInfo
-	for {
-		log.Infoln("Checking directory", t.From)
-		curFileInfo, err = ioutil.ReadDir(t.From)
-		if err != nil {
-			log.Errorln("Error checking", t.From, ":", err)
-			return
-		}
-		filename = findSameSize(t.lastFileInfo, curFileInfo)
-		if len(filename) > 0 {
-			return
-		}
-		t.lastFileInfo = curFileInfo
-		time.Sleep(t.interval)
+	log.Infoln("Checking directory", t.From)
+	curFileInfo, err = ioutil.ReadDir(t.From)
+	if err != nil {
+		log.Errorln("Error checking", t.From, ":", err)
+		return
 	}
+	filename = findSameSize(t.lastFileInfo, curFileInfo)
+	t.lastFileInfo = curFileInfo
+	return
+}
+
+func (t *taskStruct) moveFile(fn string) (err error) {
+	if err = t.copyFile(fn); err != nil {
+		log.Errorln("Error copying file ", fn, ":", err)
+		return
+	}
+	if err = os.Remove(filepath.Join(t.From, fn)); err != nil {
+		log.Errorln("Error removing file ", fn, ":", err)
+	}
+	return
 }
 
 func (t *taskStruct) copyFile(filename string) (err error) {
