@@ -7,27 +7,26 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/knadh/koanf"
-	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/file"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 var (
-	k    = koanf.New(".")
 	done = make(chan bool)
 	wg   sync.WaitGroup
 )
 
 func main() {
 	cfgFilename := "config.yml"
-	f := file.Provider(cfgFilename)
-	if err := k.Load(f, yaml.Parser()); err != nil {
+	viper.SetConfigFile(cfgFilename)
+	viper.AddConfigPath(".")
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
 		log.Fatalf("error loading config: %v", err)
 	}
 
 	var tasks []taskStruct
-	if err := k.Unmarshal("tasks", &tasks); err != nil {
+	if err := viper.UnmarshalKey("tasks", &tasks); err != nil {
 		log.Fatalf("error unmarshaling config: %v", err)
 	}
 	log.Infoln("tasks:", tasks)

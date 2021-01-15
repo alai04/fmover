@@ -14,8 +14,8 @@ import (
 )
 
 type taskStruct struct {
-	From         string `koanf:"from"`
-	To           string `koanf:"to"`
+	From         string `mapstructure:"from"`
+	To           string `mapstructure:"to"`
 	interval     time.Duration
 	lastFileInfo []os.FileInfo
 }
